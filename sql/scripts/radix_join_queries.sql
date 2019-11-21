@@ -40,3 +40,7 @@ select count(*) FROM r, s where r.key = s.key and r.key < 500000 and s.key < 160
 select count(*) FROM r, s where r.key = s.key and r.key < 250000 and s.key < 16000000;
 select count(*) FROM r, s where r.key = s.key and r.key < 125000 and s.key < 16000000;
 select count(*) FROM r, s where r.key = s.key and r.key < 62500 and s.key < 16000000;
+
+
+select count(*) from s,r where s.key = r.key and r.key < 4096;
+select count(*) from s,r_random where s.key = r_random.key and r_random.key < 4096;

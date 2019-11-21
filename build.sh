@@ -35,7 +35,7 @@ else
 	cd $MONET_SOURCE
 fi
 
-CF="-O3"
+CF="-O3 -Wno-error=maybe-uninitialized"
 
 echo "CFLAGS: $CF"
 
