@@ -11,6 +11,19 @@
 #include "gdk_private.h"
 #include "gdk_calc_private.h"
 
+#include <sys/time.h>
+
+#define GDK_JOIN_PROFILE
+
+#ifdef GDK_JOIN_PROFILE
+double get_time(void);
+double get_time(void) {
+	struct timeval t;
+	gettimeofday(&t, NULL);
+	return t.tv_sec + t.tv_usec*1e-6;
+}
+#endif
+
 /*
  * All join variants produce some sort of join on two input BATs,
  * optionally subject to up to two candidate lists.  Only values in
@@ -3570,6 +3583,12 @@ BATthetajoin(BAT **r1p, BAT **r2p, BAT *l, BAT *r, BAT *sl, BAT *sr, int op, boo
 gdk_return
 BATjoin(BAT **r1p, BAT **r2p, BAT *l, BAT *r, BAT *sl, BAT *sr, bool nil_matches, BUN estimate)
 {
+#ifdef GDK_JOIN_PROFILE
+	double start = 0.0;
+	double end = 0.0;
+	FILE* doppiolog = fopen("doppio.log", "a");
+#endif
+
 	struct canditer lci, rci;
 	BUN lcnt, rcnt;
 	BUN lsize, rsize;
@@ -3744,16 +3763,39 @@ BATjoin(BAT **r1p, BAT **r2p, BAT *l, BAT *r, BAT *sl, BAT *sr, bool nil_matches
 		swap = true;
 		reason = "left is smaller";
 	}
+
+#ifdef GDK_JOIN_PROFILE
+	printf("\nJoin of integers, do NORMAL MonetDB join!\n");
+	start = get_time();
+#endif
+
+	gdk_return temp;
 	if (swap) {
 		assert(r2p);
-		return hashjoin(r2p, r1p, r, l, sr, sl, &rci, &lci,
+		temp = hashjoin(r2p, r1p, r, l, sr, sl, &rci, &lci,
 				nil_matches, false, false, false, false,
 				estimate, t0, true, plhash, reason);
 	} else {
-		return hashjoin(r1p, r2p, l, r, sl, sr, &lci, &rci,
+		temp = hashjoin(r1p, r2p, l, r, sl, sr, &lci, &rci,
 				nil_matches, false, false, false, false,
 				estimate, t0, false, prhash, reason);
 	}
+
+#ifdef GDK_JOIN_PROFILE
+	if (start != 0.0) {
+		end = get_time();
+		printf("Total time inside MonetDB hashjoin: %.10f\n", end - start); fflush(stdout);
+		if (BATcount(l) < BATcount(r)) {
+			fprintf(doppiolog, "monet-join-> total-time: %.10f, small-rel: %ld, large-rel: %ld\n", end - start, BATcount(l), BATcount(r) ); fflush(stdout);
+		}
+		else {
+			fprintf(doppiolog, "monet-join-> total-time: %.10f, small-rel: %ld, large-rel: %ld\n", end - start, BATcount(r), BATcount(l) ); fflush(stdout);
+		}
+	}
+	fclose(doppiolog);
+#endif
+
+	return temp;
 }
 
 gdk_return
